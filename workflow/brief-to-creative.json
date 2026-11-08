@@ -1,0 +1,490 @@
+{
+  "id": "brief2creative01",
+  "name": "Brief to Creative Pack (AI ad concepts)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "creative-brief",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook: New Brief",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "6f1c2a9e-4b7d-4c1e-9a52-3b2c1d0e9f8a"
+    },
+    {
+      "parameters": {},
+      "name": "Manual Test Run",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sample brief for testing without the webhook. Edit freely.\nreturn [{ json: {\n  \"brand\": \"Brewline\",\n  \"product\": \"Brewline Cold Brew Concentrate, 1L bottle (makes 8 drinks)\",\n  \"audience\": \"Remote workers and students 22-35 in India who buy cafe iced coffee 3+ times a week and feel guilty about the spend\",\n  \"objective\": \"Drive first purchases on the D2C website\",\n  \"offer\": \"20% off the first order with code FIRSTBREW\",\n  \"tone\": \"Playful, confident, no hard sell\",\n  \"platforms\": [\n    \"Meta Reels\",\n    \"Instagram Stories\"\n  ],\n  \"formats\": [\n    \"9:16 video\"\n  ],\n  \"mandatories\": [\n    \"Show the bottle in the first 5 seconds\",\n    \"Mention code FIRSTBREW\"\n  ],\n  \"restrictions\": [\n    \"No health or energy claims\",\n    \"Do not mention competitor cafe brands\"\n  ],\n  \"notes\": \"Brand colors are deep brown and cream. Client likes UGC-style, real-kitchen settings.\",\n  \"num_concepts\": 4\n} }];"
+      },
+      "name": "Sample Brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---- shared helpers (prepended to every Code node by scripts/build-workflow.js) ----\n\n// Pull the text out of a Gemini generateContent response, failing loudly on blocks/truncation.\nfunction geminiText(res) {\n  if (res && res.error) {\n    const msg = typeof res.error === 'string' ? res.error : (res.error.message || JSON.stringify(res.error));\n    throw new Error('Gemini request failed: ' + String(msg).slice(0, 300));\n  }\n  const cand = res && res.candidates && res.candidates[0];\n  if (!cand) {\n    const why = res && res.promptFeedback ? JSON.stringify(res.promptFeedback) : 'no candidates';\n    throw new Error('Gemini returned nothing usable: ' + why.slice(0, 300));\n  }\n  if (cand.finishReason && cand.finishReason !== 'STOP') {\n    throw new Error('Gemini stopped early (' + cand.finishReason + '), output is incomplete');\n  }\n  return ((cand.content && cand.content.parts) || []).map(p => p.text || '').join('');\n}\n\n// LLMs sometimes wrap JSON in ``` fences or add chatter. Strip that before parsing.\n// Also repairs the classic small-model mistake: trailing commas like {\"a\": 1,}\nfunction parseJsonLoose(text) {\n  const cleaned = String(text).trim()\n    .replace(/^```(?:json)?\\s*/i, '')\n    .replace(/```\\s*$/, '')\n    .trim();\n  const start = cleaned.search(/[\\[{]/);\n  const end = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));\n  const body = start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned;\n  const attempts = [\n    cleaned,\n    body,\n    body.replace(/,\\s*([}\\]])/g, '$1'), // trailing commas\n  ];\n  let lastError;\n  for (const candidate of attempts) {\n    try { return JSON.parse(candidate); } catch (e) { lastError = e; }\n  }\n  throw new Error('Could not parse model output as JSON (' + lastError.message + '): ' + cleaned.slice(0, 200));\n}\n\nfunction usageOf(res) {\n  const u = (res && res.usageMetadata) || {};\n  return {\n    input: u.promptTokenCount || 0,\n    // thinking tokens are billed as output on Gemini thinking models\n    output: (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0),\n    calls: 1,\n  };\n}\n\nfunction addUsage(a, b) {\n  return {\n    input: (a.input || 0) + (b.input || 0),\n    output: (a.output || 0) + (b.output || 0),\n    calls: (a.calls || 0) + (b.calls || 0),\n  };\n}\n\nfunction costUsd(usage, pricing) {\n  const usd = (usage.input / 1e6) * pricing.input_per_1m + (usage.output / 1e6) * pricing.output_per_1m;\n  return Math.round(usd * 1e6) / 1e6;\n}\n\nfunction geminiRequest(prompt, config) {\n  const generationConfig = { responseMimeType: 'application/json' };\n  // Gemini 3.x models \"think\" before answering. Default thinking made calls take minutes,\n  // so it's turned down. Set thinkingLevel to null in CONFIG if your model rejects it.\n  if (config && config.thinkingLevel) generationConfig.thinkingConfig = { thinkingLevel: config.thinkingLevel };\n  return {\n    contents: [{ role: 'user', parts: [{ text: prompt }] }],\n    generationConfig,\n  };\n}\n\nfunction geminiUrl(config) {\n  return config.baseUrl.replace(/\\/$/, '') + '/v1beta/models/' + config.model + ':generateContent';\n}\n\n// ---- end shared helpers ----\n\n// Normalize Brief: accepts a webhook POST body or the sample brief, cleans it up,\n// checks the must-have fields and builds the first LLM request (brief analysis).\n\nconst CONFIG = {\n  model: 'gemini-3.8-flash',\n  baseUrl: 'https://generativelanguage.googleapis.com',\n  thinkingLevel: 'low', // 'low' keeps each call fast; null = model default (much slower)\n  defaultConcepts: 4,\n  maxConcepts: 8, // hard cap so a typo like num_concepts: 80 can't burn the budget\n  // Example rates in USD per 1M tokens. Update to your model's current pricing.\n  pricing: { input_per_1m: 0.30, output_per_1m: 2.50 },\n  // How much each score counts toward the final rank (sums to 1)\n  weights: { hook_strength: 0.30, brand_fit: 0.20, platform_fit: 0.20, clarity: 0.15, production_feasibility: 0.15 },\n  highRiskPenalty: 2,\n  unsupportedClaimPenalty: 1, // concepts claiming things the brief never said rank lower\n};\n\nconst item = $input.first().json;\nconst raw = item.body && typeof item.body === 'object' ? item.body : item;\n\nconst str = v => (typeof v === 'string' ? v.trim() : '');\nconst list = v => {\n  if (Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean);\n  if (typeof v === 'string') return v.split(/[,\\n]/).map(s => s.trim()).filter(Boolean);\n  return [];\n};\nconst clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));\n\nconst brief = {\n  brand: str(raw.brand),\n  product: str(raw.product),\n  audience: str(raw.audience),\n  objective: str(raw.objective),\n  offer: str(raw.offer),\n  tone: str(raw.tone) || 'brand-appropriate',\n  platforms: list(raw.platforms).length ? list(raw.platforms) : ['Meta (Reels / Stories)'],\n  formats: list(raw.formats).length ? list(raw.formats) : ['9:16 video'],\n  mandatories: list(raw.mandatories),\n  restrictions: list(raw.restrictions),\n  notes: str(raw.notes),\n  num_concepts: clamp(parseInt(raw.num_concepts, 10) || CONFIG.defaultConcepts, 1, CONFIG.maxConcepts),\n};\n\n// Mapping the process first: these are the questions a strategist asks on the 30-min brief call.\n// If any are blank we stop and ask, instead of letting the model guess.\nconst REQUIRED = {\n  brand: 'Which brand is this for?',\n  product: 'What exact product or offer are we advertising?',\n  audience: 'Who is the target customer (age, situation, main pain)?',\n  objective: 'What should the ad achieve (sales, leads, installs, awareness)?',\n};\nconst missing = Object.entries(REQUIRED)\n  .filter(([field]) => !brief[field])\n  .map(([field, question]) => ({ field, question }));\n\nconst run_id = 'run_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);\n\nconst prompt = `TASK: BRIEF_ANALYSIS\nYou are a senior performance creative strategist at an AI ad agency.\nAnalyze this client brief and return ONLY JSON matching the schema below.\nRules:\n- Use only facts in the brief. Never invent stats, awards, prices or claims.\n- proof_points must come from the brief. If there are none, return an empty array.\n- angles = 4 to 6 distinct ad angles (short phrases), not taglines.\n- open_questions = anything the creative team would need to ask the client.\n\nSchema:\n{\n  \"core_message\": \"one sentence\",\n  \"audience_insight\": \"the real tension or desire behind the purchase\",\n  \"pain_points\": [\"...\"],\n  \"desires\": [\"...\"],\n  \"usps\": [\"...\"],\n  \"objections\": [\"...\"],\n  \"proof_points\": [\"...\"],\n  \"angles\": [\"...\"],\n  \"visual_direction\": \"look, feel, setting, colors\",\n  \"compliance_notes\": [\"claims or content to be careful with on ad platforms\"],\n  \"open_questions\": [\"...\"]\n}\n\nBrief:\n${JSON.stringify(brief, null, 2)}`;\n\nreturn [{\n  json: {\n    run_id,\n    started_at: new Date().toISOString(),\n    config: CONFIG,\n    brief,\n    missing,\n    is_complete: missing.length === 0,\n    url: geminiUrl(CONFIG),\n    gemini_request: geminiRequest(prompt, CONFIG),\n  },\n}];\n"
+      },
+      "name": "Normalize Brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "brief-complete",
+              "leftValue": "={{ $json.is_complete }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Brief Complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: \"needs_info\", run_id: $json.run_id, questions: $json.missing }) }}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "name": "Respond: Needs Info",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.gemini_request) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "name": "Gemini: Analyze Brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "geminiApiCred",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---- shared helpers (prepended to every Code node by scripts/build-workflow.js) ----\n\n// Pull the text out of a Gemini generateContent response, failing loudly on blocks/truncation.\nfunction geminiText(res) {\n  if (res && res.error) {\n    const msg = typeof res.error === 'string' ? res.error : (res.error.message || JSON.stringify(res.error));\n    throw new Error('Gemini request failed: ' + String(msg).slice(0, 300));\n  }\n  const cand = res && res.candidates && res.candidates[0];\n  if (!cand) {\n    const why = res && res.promptFeedback ? JSON.stringify(res.promptFeedback) : 'no candidates';\n    throw new Error('Gemini returned nothing usable: ' + why.slice(0, 300));\n  }\n  if (cand.finishReason && cand.finishReason !== 'STOP') {\n    throw new Error('Gemini stopped early (' + cand.finishReason + '), output is incomplete');\n  }\n  return ((cand.content && cand.content.parts) || []).map(p => p.text || '').join('');\n}\n\n// LLMs sometimes wrap JSON in ``` fences or add chatter. Strip that before parsing.\n// Also repairs the classic small-model mistake: trailing commas like {\"a\": 1,}\nfunction parseJsonLoose(text) {\n  const cleaned = String(text).trim()\n    .replace(/^```(?:json)?\\s*/i, '')\n    .replace(/```\\s*$/, '')\n    .trim();\n  const start = cleaned.search(/[\\[{]/);\n  const end = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));\n  const body = start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned;\n  const attempts = [\n    cleaned,\n    body,\n    body.replace(/,\\s*([}\\]])/g, '$1'), // trailing commas\n  ];\n  let lastError;\n  for (const candidate of attempts) {\n    try { return JSON.parse(candidate); } catch (e) { lastError = e; }\n  }\n  throw new Error('Could not parse model output as JSON (' + lastError.message + '): ' + cleaned.slice(0, 200));\n}\n\nfunction usageOf(res) {\n  const u = (res && res.usageMetadata) || {};\n  return {\n    input: u.promptTokenCount || 0,\n    // thinking tokens are billed as output on Gemini thinking models\n    output: (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0),\n    calls: 1,\n  };\n}\n\nfunction addUsage(a, b) {\n  return {\n    input: (a.input || 0) + (b.input || 0),\n    output: (a.output || 0) + (b.output || 0),\n    calls: (a.calls || 0) + (b.calls || 0),\n  };\n}\n\nfunction costUsd(usage, pricing) {\n  const usd = (usage.input / 1e6) * pricing.input_per_1m + (usage.output / 1e6) * pricing.output_per_1m;\n  return Math.round(usd * 1e6) / 1e6;\n}\n\nfunction geminiRequest(prompt, config) {\n  const generationConfig = { responseMimeType: 'application/json' };\n  // Gemini 3.x models \"think\" before answering. Default thinking made calls take minutes,\n  // so it's turned down. Set thinkingLevel to null in CONFIG if your model rejects it.\n  if (config && config.thinkingLevel) generationConfig.thinkingConfig = { thinkingLevel: config.thinkingLevel };\n  return {\n    contents: [{ role: 'user', parts: [{ text: prompt }] }],\n    generationConfig,\n  };\n}\n\nfunction geminiUrl(config) {\n  return config.baseUrl.replace(/\\/$/, '') + '/v1beta/models/' + config.model + ':generateContent';\n}\n\n// ---- end shared helpers ----\n\n// Read Brief Analysis: validates the model's brief breakdown and builds the concept generation request.\n\nconst ctx = $('Normalize Brief').first().json;\nconst res = $input.first().json;\n\nconst analysis = parseJsonLoose(geminiText(res));\n\nconst needed = ['core_message', 'pain_points', 'usps', 'angles'];\nconst gaps = needed.filter(k => analysis[k] == null || (Array.isArray(analysis[k]) && analysis[k].length === 0));\nif (gaps.length) throw new Error('Brief analysis is missing: ' + gaps.join(', '));\n\nfor (const k of ['pain_points', 'desires', 'usps', 'objections', 'proof_points', 'angles', 'compliance_notes', 'open_questions']) {\n  if (!Array.isArray(analysis[k])) analysis[k] = analysis[k] ? [String(analysis[k])] : [];\n}\n\nconst usage = usageOf(res);\nconst { brief } = ctx;\nconst arMatch = brief.formats.join(' ').match(/\\b(\\d{1,2}:\\d{1,2})\\b/);\nconst aspect = arMatch ? arMatch[1] : '9:16';\n\nconst prompt = `TASK: CONCEPT_GENERATION\nYou write production-ready AI video ad concepts for ${brief.platforms.join(', ')}.\nCreate exactly ${brief.num_concepts} concepts. Each must use a DIFFERENT angle from the analysis.\nReturn ONLY JSON matching the schema.\n\nProduction rules:\n- hook: what is seen/heard in the first 3 seconds, max 12 words.\n- script: 3 to 6 beats, total 15 to 30 seconds.\n- midjourney_prompt: one keyframe/thumbnail still. Describe subject, setting, lighting, lens, style. End with --ar ${aspect}. No brand logos or text in the image.\n- kling_prompt: image-to-video motion for that keyframe. Camera move, subject action, pacing, 5 to 10 seconds.\n- elevenlabs.voiceover_text: the full spoken VO, natural and speakable. voice_direction: gender, age, accent, energy.\n- Respect every restriction. Include every mandatory.\n- Only make claims the brief supports. No invented numbers, timings, taste or quality comparisons\n  (e.g. don't say \"ready in 15 seconds\" or \"tastes exactly like the cafe\" unless the brief says so).\n  If a claim would make the ad stronger but isn't in the brief, leave it out.\n- Tone: ${brief.tone}.\n\nSchema:\n{\n  \"concepts\": [\n    {\n      \"title\": \"...\",\n      \"angle\": \"...\",\n      \"hook\": \"...\",\n      \"script\": [{ \"t\": \"0-3s\", \"visual\": \"...\", \"voiceover\": \"...\", \"on_screen_text\": \"...\" }],\n      \"cta\": \"...\",\n      \"midjourney_prompt\": \"...\",\n      \"kling_prompt\": \"...\",\n      \"elevenlabs\": { \"voice_direction\": \"...\", \"voiceover_text\": \"...\" },\n      \"est_duration_s\": 20\n    }\n  ]\n}\n\nBrief:\n${JSON.stringify(brief, null, 2)}\n\nStrategist analysis:\n${JSON.stringify(analysis, null, 2)}`;\n\nreturn [{\n  json: {\n    analysis,\n    aspect,\n    usage_so_far: usage,\n    url: ctx.url,\n    gemini_request: geminiRequest(prompt, ctx.config),\n  },\n}];\n"
+      },
+      "name": "Read Brief Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.gemini_request) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "name": "Gemini: Generate Concepts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        0
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "geminiApiCred",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---- shared helpers (prepended to every Code node by scripts/build-workflow.js) ----\n\n// Pull the text out of a Gemini generateContent response, failing loudly on blocks/truncation.\nfunction geminiText(res) {\n  if (res && res.error) {\n    const msg = typeof res.error === 'string' ? res.error : (res.error.message || JSON.stringify(res.error));\n    throw new Error('Gemini request failed: ' + String(msg).slice(0, 300));\n  }\n  const cand = res && res.candidates && res.candidates[0];\n  if (!cand) {\n    const why = res && res.promptFeedback ? JSON.stringify(res.promptFeedback) : 'no candidates';\n    throw new Error('Gemini returned nothing usable: ' + why.slice(0, 300));\n  }\n  if (cand.finishReason && cand.finishReason !== 'STOP') {\n    throw new Error('Gemini stopped early (' + cand.finishReason + '), output is incomplete');\n  }\n  return ((cand.content && cand.content.parts) || []).map(p => p.text || '').join('');\n}\n\n// LLMs sometimes wrap JSON in ``` fences or add chatter. Strip that before parsing.\n// Also repairs the classic small-model mistake: trailing commas like {\"a\": 1,}\nfunction parseJsonLoose(text) {\n  const cleaned = String(text).trim()\n    .replace(/^```(?:json)?\\s*/i, '')\n    .replace(/```\\s*$/, '')\n    .trim();\n  const start = cleaned.search(/[\\[{]/);\n  const end = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));\n  const body = start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned;\n  const attempts = [\n    cleaned,\n    body,\n    body.replace(/,\\s*([}\\]])/g, '$1'), // trailing commas\n  ];\n  let lastError;\n  for (const candidate of attempts) {\n    try { return JSON.parse(candidate); } catch (e) { lastError = e; }\n  }\n  throw new Error('Could not parse model output as JSON (' + lastError.message + '): ' + cleaned.slice(0, 200));\n}\n\nfunction usageOf(res) {\n  const u = (res && res.usageMetadata) || {};\n  return {\n    input: u.promptTokenCount || 0,\n    // thinking tokens are billed as output on Gemini thinking models\n    output: (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0),\n    calls: 1,\n  };\n}\n\nfunction addUsage(a, b) {\n  return {\n    input: (a.input || 0) + (b.input || 0),\n    output: (a.output || 0) + (b.output || 0),\n    calls: (a.calls || 0) + (b.calls || 0),\n  };\n}\n\nfunction costUsd(usage, pricing) {\n  const usd = (usage.input / 1e6) * pricing.input_per_1m + (usage.output / 1e6) * pricing.output_per_1m;\n  return Math.round(usd * 1e6) / 1e6;\n}\n\nfunction geminiRequest(prompt, config) {\n  const generationConfig = { responseMimeType: 'application/json' };\n  // Gemini 3.x models \"think\" before answering. Default thinking made calls take minutes,\n  // so it's turned down. Set thinkingLevel to null in CONFIG if your model rejects it.\n  if (config && config.thinkingLevel) generationConfig.thinkingConfig = { thinkingLevel: config.thinkingLevel };\n  return {\n    contents: [{ role: 'user', parts: [{ text: prompt }] }],\n    generationConfig,\n  };\n}\n\nfunction geminiUrl(config) {\n  return config.baseUrl.replace(/\\/$/, '') + '/v1beta/models/' + config.model + ':generateContent';\n}\n\n// ---- end shared helpers ----\n\n// Split Concepts: validates each generated concept, drops broken ones, and fans out one scoring request per concept.\n\nconst ctx = $('Normalize Brief').first().json;\nconst prev = $('Read Brief Analysis').first().json;\nconst res = $input.first().json;\n\nconst parsed = parseJsonLoose(geminiText(res));\nconst list = Array.isArray(parsed) ? parsed : parsed.concepts;\nif (!Array.isArray(list) || list.length === 0) throw new Error('Model returned no concepts');\n\nconst warnings = [];\nconst valid = [];\n\nlist.forEach((c, i) => {\n  const problems = [];\n  if (!c || typeof c !== 'object') problems.push('not an object');\n  else {\n    if (!c.hook) problems.push('no hook');\n    if (!Array.isArray(c.script) || c.script.length === 0) problems.push('no script beats');\n    if (!c.midjourney_prompt) problems.push('no Midjourney prompt');\n    if (!c.kling_prompt) problems.push('no Kling prompt');\n    // VO can be rebuilt from the script beats if the model skipped it\n    c.elevenlabs = c.elevenlabs || {};\n    if (!c.elevenlabs.voiceover_text && Array.isArray(c.script)) {\n      c.elevenlabs.voiceover_text = c.script.map(b => b.voiceover).filter(Boolean).join(' ');\n    }\n    if (!c.elevenlabs.voiceover_text) problems.push('no voiceover');\n  }\n  if (problems.length) warnings.push(`Concept ${i + 1} dropped: ${problems.join(', ')}`);\n  else valid.push(c);\n});\n\nif (valid.length === 0) throw new Error('Every concept failed validation: ' + warnings.join(' | '));\nif (valid.length < ctx.brief.num_concepts) {\n  warnings.push(`Asked for ${ctx.brief.num_concepts} concepts, got ${valid.length} usable`);\n}\n\nconst usage = addUsage(prev.usage_so_far, usageOf(res));\nconst { brief } = ctx;\n\nreturn valid.map((concept, i) => {\n  const prompt = `TASK: CONCEPT_SCORING\nYou are a harsh performance creative reviewer. Score this ad concept against the brief.\nScale 1-10: 5 = average, 7 = solid, 9+ = rare. Return ONLY JSON:\n{\n  \"hook_strength\": 1-10,\n  \"brand_fit\": 1-10,\n  \"clarity\": 1-10,\n  \"platform_fit\": 1-10,\n  \"production_feasibility\": 1-10,\n  \"compliance_risk\": \"low\" | \"medium\" | \"high\",\n  \"compliance_reason\": \"...\",\n  \"biggest_weakness\": \"...\",\n  \"one_fix\": \"one concrete change that would raise the score\",\n  \"unsupported_claims\": [\"exact phrases in the concept that state facts NOT in the brief\"]\n}\nproduction_feasibility = how reliably current AI video/image/voice tools can produce this without uncanny results.\ncompliance_risk: check ad platform policy issues (health/finance claims, before-after, personal attributes) and the client restrictions.\nunsupported_claims: timings, numbers, taste/quality comparisons or results the brief never states. Empty array if none.\n\nBrief: ${JSON.stringify({ brand: brief.brand, product: brief.product, audience: brief.audience, objective: brief.objective, offer: brief.offer, platforms: brief.platforms, restrictions: brief.restrictions, mandatories: brief.mandatories, notes: brief.notes })}\n\nConcept:\n${JSON.stringify(concept, null, 2)}`;\n\n  return {\n    json: {\n      concept_id: 'C' + (i + 1),\n      concept,\n      usage_so_far: usage,\n      warnings,\n      url: ctx.url,\n      gemini_request: geminiRequest(prompt, ctx.config),\n    },\n  };\n});\n"
+      },
+      "name": "Split Concepts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.gemini_request) }}",
+        "options": {
+          "timeout": 180000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1500
+            }
+          }
+        }
+      },
+      "name": "Gemini: Score Concept",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        0
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "geminiApiCred",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "retryOnFail": false,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "name": "Wait Before Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        200
+      ],
+      "webhookId": "0b7e4c2a-9d1f-4e3b-8a6c-5f2d1e0c9b8a"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Split Concepts').item.json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Split Concepts').item.json.gemini_request) }}",
+        "options": {
+          "timeout": 180000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 3000
+            }
+          }
+        }
+      },
+      "name": "Gemini: Retry Score",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2200,
+        200
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "geminiApiCred",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      },
+      "retryOnFail": false,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "name": "Collect Scores",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        2420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---- shared helpers (prepended to every Code node by scripts/build-workflow.js) ----\n\n// Pull the text out of a Gemini generateContent response, failing loudly on blocks/truncation.\nfunction geminiText(res) {\n  if (res && res.error) {\n    const msg = typeof res.error === 'string' ? res.error : (res.error.message || JSON.stringify(res.error));\n    throw new Error('Gemini request failed: ' + String(msg).slice(0, 300));\n  }\n  const cand = res && res.candidates && res.candidates[0];\n  if (!cand) {\n    const why = res && res.promptFeedback ? JSON.stringify(res.promptFeedback) : 'no candidates';\n    throw new Error('Gemini returned nothing usable: ' + why.slice(0, 300));\n  }\n  if (cand.finishReason && cand.finishReason !== 'STOP') {\n    throw new Error('Gemini stopped early (' + cand.finishReason + '), output is incomplete');\n  }\n  return ((cand.content && cand.content.parts) || []).map(p => p.text || '').join('');\n}\n\n// LLMs sometimes wrap JSON in ``` fences or add chatter. Strip that before parsing.\n// Also repairs the classic small-model mistake: trailing commas like {\"a\": 1,}\nfunction parseJsonLoose(text) {\n  const cleaned = String(text).trim()\n    .replace(/^```(?:json)?\\s*/i, '')\n    .replace(/```\\s*$/, '')\n    .trim();\n  const start = cleaned.search(/[\\[{]/);\n  const end = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));\n  const body = start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned;\n  const attempts = [\n    cleaned,\n    body,\n    body.replace(/,\\s*([}\\]])/g, '$1'), // trailing commas\n  ];\n  let lastError;\n  for (const candidate of attempts) {\n    try { return JSON.parse(candidate); } catch (e) { lastError = e; }\n  }\n  throw new Error('Could not parse model output as JSON (' + lastError.message + '): ' + cleaned.slice(0, 200));\n}\n\nfunction usageOf(res) {\n  const u = (res && res.usageMetadata) || {};\n  return {\n    input: u.promptTokenCount || 0,\n    // thinking tokens are billed as output on Gemini thinking models\n    output: (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0),\n    calls: 1,\n  };\n}\n\nfunction addUsage(a, b) {\n  return {\n    input: (a.input || 0) + (b.input || 0),\n    output: (a.output || 0) + (b.output || 0),\n    calls: (a.calls || 0) + (b.calls || 0),\n  };\n}\n\nfunction costUsd(usage, pricing) {\n  const usd = (usage.input / 1e6) * pricing.input_per_1m + (usage.output / 1e6) * pricing.output_per_1m;\n  return Math.round(usd * 1e6) / 1e6;\n}\n\nfunction geminiRequest(prompt, config) {\n  const generationConfig = { responseMimeType: 'application/json' };\n  // Gemini 3.x models \"think\" before answering. Default thinking made calls take minutes,\n  // so it's turned down. Set thinkingLevel to null in CONFIG if your model rejects it.\n  if (config && config.thinkingLevel) generationConfig.thinkingConfig = { thinkingLevel: config.thinkingLevel };\n  return {\n    contents: [{ role: 'user', parts: [{ text: prompt }] }],\n    generationConfig,\n  };\n}\n\nfunction geminiUrl(config) {\n  return config.baseUrl.replace(/\\/$/, '') + '/v1beta/models/' + config.model + ':generateContent';\n}\n\n// ---- end shared helpers ----\n\n// Rank & Build Report: merges scores with concepts, ranks them, totals the cost and writes the creative pack.\n\nconst ctx = $('Normalize Brief').first().json;\nconst analysis = $('Read Brief Analysis').first().json.analysis;\nconst concepts = $('Split Concepts').all().map(i => i.json);\n\n// Scores arrive from two branches (first try + retry), so order isn't guaranteed.\n// Match each response back to its concept through n8n's item pairing instead of by position.\nconst responseById = {};\n$input.all().forEach((item, i) => {\n  let source = null;\n  try { source = $('Split Concepts').itemMatching(i).json; } catch (e) { /* unpaired item */ }\n  if (source && source.concept_id) responseById[source.concept_id] = item.json;\n});\n\nconst { config, brief } = ctx;\nconst warnings = [...(concepts[0].warnings || [])];\nlet usage = concepts[0].usage_so_far;\n\nconst DIMS = Object.keys(config.weights);\nconst toScore = v => Math.min(10, Math.max(1, Math.round(Number(v)) || 1));\n\nconst results = concepts.map(c => {\n  const res = responseById[c.concept_id] || { error: 'no scoring response came back' };\n  let score = null;\n  try {\n    const s = parseJsonLoose(geminiText(res));\n    usage = addUsage(usage, usageOf(res));\n    const dims = {};\n    DIMS.forEach(d => { dims[d] = toScore(s[d]); });\n    const total = Math.round(DIMS.reduce((sum, d) => sum + dims[d] * config.weights[d], 0) * 10) / 10;\n    const risk = ['low', 'medium', 'high'].includes(String(s.compliance_risk).toLowerCase())\n      ? String(s.compliance_risk).toLowerCase() : 'medium';\n    const unsupported = Array.isArray(s.unsupported_claims) ? s.unsupported_claims.filter(Boolean) : [];\n    let rankScore = total;\n    if (risk === 'high') rankScore -= config.highRiskPenalty;\n    if (unsupported.length) rankScore -= config.unsupportedClaimPenalty;\n    score = {\n      ...dims,\n      weighted_total: total,\n      compliance_risk: risk,\n      compliance_reason: s.compliance_reason || '',\n      unsupported_claims: unsupported,\n      biggest_weakness: s.biggest_weakness || '',\n      one_fix: s.one_fix || '',\n      rank_score: Math.round(rankScore * 10) / 10,\n    };\n  } catch (e) {\n    // One failed scoring call shouldn't sink the whole run. Keep the concept, flag it for a human.\n    warnings.push(`${c.concept_id} not scored: ${e.message}`);\n  }\n  return { concept_id: c.concept_id, ...c.concept, score, status: score ? 'scored' : 'needs_manual_review' };\n});\n\nresults.sort((a, b) => {\n  if (!a.score && !b.score) return 0;\n  if (!a.score) return 1;\n  if (!b.score) return -1;\n  return b.score.rank_score - a.score.rank_score;\n});\nresults.forEach((r, i) => { r.rank = i + 1; });\n\nconst cost = {\n  model: config.model,\n  llm_calls: usage.calls,\n  input_tokens: usage.input,\n  output_tokens: usage.output,\n  usd: costUsd(usage, config.pricing),\n  usd_per_concept: results.length ? Math.round((costUsd(usage, config.pricing) / results.length) * 1e6) / 1e6 : 0,\n};\n\nconst finished = new Date();\nconst durationMs = finished - new Date(ctx.started_at);\n\n// ---- Markdown creative pack (paste into Notion/Slack/Docs) ----\nconst md = [];\nmd.push(`# Creative Pack: ${brief.brand} / ${brief.product}`);\nmd.push(`Run \\`${ctx.run_id}\\` · ${finished.toISOString()} · ${(durationMs / 1000).toFixed(1)}s · ${cost.llm_calls} LLM calls · $${cost.usd.toFixed(4)}`);\nmd.push('');\nmd.push(`**Core message:** ${analysis.core_message}`);\nif (analysis.audience_insight) md.push(`**Audience insight:** ${analysis.audience_insight}`);\nmd.push('');\nmd.push('| Rank | Concept | Angle | Score | Risk |');\nmd.push('|---|---|---|---|---|');\nresults.forEach(r => {\n  md.push(`| ${r.rank} | ${r.title || r.concept_id} | ${r.angle || ''} | ${r.score ? r.score.weighted_total : 'n/a'} | ${r.score ? r.score.compliance_risk : 'review'} |`);\n});\nresults.forEach(r => {\n  md.push('');\n  md.push(`## #${r.rank} ${r.title || r.concept_id}`);\n  md.push(`**Hook:** ${r.hook}`);\n  if (r.score) {\n    md.push(`**Scores:** hook ${r.score.hook_strength} · brand ${r.score.brand_fit} · platform ${r.score.platform_fit} · clarity ${r.score.clarity} · feasibility ${r.score.production_feasibility}`);\n    md.push(`**Fix before production:** ${r.score.one_fix}`);\n    if (r.score.compliance_risk !== 'low') md.push(`**Compliance (${r.score.compliance_risk}):** ${r.score.compliance_reason}`);\n    if (r.score.unsupported_claims.length) md.push(`**Claims not in the brief (cut or confirm with client):** ${r.score.unsupported_claims.map(c => `\"${c}\"`).join(', ')}`);\n  } else {\n    md.push('**Scoring failed, needs a manual review.**');\n  }\n  md.push('');\n  md.push('| Time | Visual | VO | On screen |');\n  md.push('|---|---|---|---|');\n  (r.script || []).forEach(b => md.push(`| ${b.t || ''} | ${b.visual || ''} | ${b.voiceover || ''} | ${b.on_screen_text || ''} |`));\n  md.push('');\n  md.push('**Midjourney (keyframe):**');\n  md.push('```');\n  md.push(r.midjourney_prompt);\n  md.push('```');\n  md.push('**Kling (image-to-video):**');\n  md.push('```');\n  md.push(r.kling_prompt);\n  md.push('```');\n  md.push(`**ElevenLabs VO** (${r.elevenlabs.voice_direction || 'any'}):`);\n  md.push(`> ${r.elevenlabs.voiceover_text}`);\n  md.push(`**CTA:** ${r.cta || ''}`);\n});\nif (analysis.open_questions.length) {\n  md.push('');\n  md.push('## Questions for the client');\n  analysis.open_questions.forEach(q => md.push(`- ${q}`));\n}\nif (warnings.length) {\n  md.push('');\n  md.push('## Run warnings');\n  warnings.forEach(w => md.push(`- ${w}`));\n}\n\nreturn [{\n  json: {\n    status: warnings.length ? 'ok_with_warnings' : 'ok',\n    run_id: ctx.run_id,\n    brand: brief.brand,\n    product: brief.product,\n    generated_at: finished.toISOString(),\n    duration_ms: durationMs,\n    cost,\n    top_pick: results[0] ? results[0].concept_id : null,\n    analysis,\n    concepts: results,\n    warnings,\n    report_markdown: md.join('\\n'),\n  },\n}];\n"
+      },
+      "name": "Rank & Build Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Respond: Creative Pack",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2860,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: New Brief": {
+      "main": [
+        [
+          {
+            "node": "Normalize Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Test Run": {
+      "main": [
+        [
+          {
+            "node": "Sample Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample Brief": {
+      "main": [
+        [
+          {
+            "node": "Normalize Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Brief": {
+      "main": [
+        [
+          {
+            "node": "Brief Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Brief Complete?": {
+      "main": [
+        [
+          {
+            "node": "Gemini: Analyze Brief",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Needs Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: Analyze Brief": {
+      "main": [
+        [
+          {
+            "node": "Read Brief Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Brief Analysis": {
+      "main": [
+        [
+          {
+            "node": "Gemini: Generate Concepts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: Generate Concepts": {
+      "main": [
+        [
+          {
+            "node": "Split Concepts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Concepts": {
+      "main": [
+        [
+          {
+            "node": "Gemini: Score Concept",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: Score Concept": {
+      "main": [
+        [
+          {
+            "node": "Collect Scores",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait Before Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Retry": {
+      "main": [
+        [
+          {
+            "node": "Gemini: Retry Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: Retry Score": {
+      "main": [
+        [
+          {
+            "node": "Collect Scores",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Collect Scores": {
+      "main": [
+        [
+          {
+            "node": "Rank & Build Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rank & Build Report": {
+      "main": [
+        [
+          {
+            "node": "Respond: Creative Pack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "pinData": {}
+}

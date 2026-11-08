@@ -1,0 +1,12 @@
+{
+  "name": "brief-to-creative",
+  "version": "1.0.0",
+  "description": "n8n workflow that turns a client ad brief into scored, production-ready AI creative concepts",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build-workflow.js",
+    "build:mock": "GEMINI_BASE_URL=http://127.0.0.1:8787 OUT=workflow/brief-to-creative.mock.json node scripts/build-workflow.js",
+    "mock": "node test/mock-gemini.js"
+  },
+  "license": "MIT"
+}

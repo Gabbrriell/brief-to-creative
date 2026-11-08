@@ -1,0 +1,260 @@
+[
+  {
+    "status": "ok",
+    "run_id": "run_mw86u7haffi7",
+    "brand": "Brewline",
+    "product": "Brewline Cold Brew Concentrate, 1L bottle (makes 8 drinks)",
+    "generated_at": "2026-11-08T18:51:14.159Z",
+    "duration_ms": 12817,
+    "cost": {
+      "model": "gemini-3.5-flash-lite",
+      "llm_calls": 6,
+      "input_tokens": 5283,
+      "output_tokens": 3046,
+      "usd": 0.0092,
+      "usd_per_concept": 0.0023
+    },
+    "top_pick": "C1",
+    "analysis": {
+      "core_message": "Save money on your daily iced coffee habit without sacrificing cafe quality at home.",
+      "audience_insight": "Remote workers and students love the ritual and taste of daily cafe iced coffee, but feel guilty about the recurring expense.",
+      "pain_points": [
+        "High cost of buying cafe iced coffee 3+ times a week",
+        "Guilt associated with daily coffee spending"
+      ],
+      "desires": [
+        "Affordable daily iced coffee",
+        "Cafe-quality taste at home",
+        "Convenience while working or studying"
+      ],
+      "usps": [
+        "Makes 8 drinks per 1L bottle",
+        "Cold brew concentrate for easy at-home preparation"
+      ],
+      "objections": [
+        "Will it taste as good as a cafe coffee?",
+        "Is it difficult to make at home?"
+      ],
+      "proof_points": [],
+      "angles": [
+        "Calculate the weekly cafe spend vs. concentrate savings",
+        "Quick and easy morning routine for remote work productivity",
+        "Recreating the cafe iced coffee experience in a real kitchen",
+        "Guilt-free daily indulgence for students and professionals"
+      ],
+      "visual_direction": "UGC-style, real-kitchen settings, deep brown and cream brand colors, 9:16 vertical video format",
+      "compliance_notes": [
+        "No health or energy claims",
+        "Do not mention competitor cafe brands"
+      ],
+      "open_questions": [
+        "What is the exact price per bottle before the 20% discount?",
+        "What are the specific steps to mix the concentrate for the best user experience in the video?"
+      ]
+    },
+    "concepts": [
+      {
+        "concept_id": "C1",
+        "title": "Weekly Spend Reality Check",
+        "angle": "Calculate the weekly cafe spend vs. concentrate savings",
+        "hook": "Stop and look at how much you're spending on daily iced coffee.",
+        "script": [
+          {
+            "t": "0-3s",
+            "visual": "Close up of the Brewline 1L bottle on a cream kitchen counter next to a glass of ice.",
+            "voiceover": "Stop and look at how much you're spending on daily iced coffee.",
+            "on_screen_text": "Daily iced coffee adds up fast"
+          },
+          {
+            "t": "3-10s",
+            "visual": "A remote worker at a desk in a warm, cream-toned room pouring dark cold brew concentrate over ice.",
+            "voiceover": "One bottle of Brewline concentrate makes eight drinks right at home.",
+            "on_screen_text": "1 bottle = 8 drinks"
+          },
+          {
+            "t": "10-20s",
+            "visual": "Stirring milk into the glass, taking a sip with a relaxed, happy expression.",
+            "voiceover": "Use code FIRSTBREW to get twenty percent off your first order today.",
+            "on_screen_text": "Get 20% off with code FIRSTBREW"
+          }
+        ],
+        "cta": "Shop Brewline Now",
+        "midjourney_prompt": "UGC style photo of a 1L glass bottle of cold brew on a modern cream kitchen counter, deep brown accents, soft morning light, shot on 35mm lens, photorealistic --ar 9:16",
+        "kling_prompt": "Camera slowly pushes in on the cold brew bottle as a hand drops ice cubes into a glass next to it, natural motion, 7 seconds",
+        "elevenlabs": {
+          "voice_direction": "Female, 26, Indian accent, friendly and conversational tone",
+          "voiceover_text": "Stop and look at how much you're spending on daily iced coffee. One bottle of Brewline concentrate makes eight drinks right at home. Use code FIRSTBREW to get twenty percent off your first order today."
+        },
+        "est_duration_s": 20,
+        "score": {
+          "hook_strength": 6,
+          "brand_fit": 8,
+          "platform_fit": 8,
+          "clarity": 9,
+          "production_feasibility": 8,
+          "weighted_total": 7.6,
+          "compliance_risk": "low",
+          "compliance_reason": "No health, energy, or competitor claims made. Adheres to all restrictions.",
+          "unsupported_claims": [],
+          "biggest_weakness": "The hook relies on a generic financial callout rather than directly addressing the guilt of spending on 3+ cafe trips a week.",
+          "one_fix": "Change the hook to visually or verbally contrast the cost of 3 weekly cafe runs with the price of one Brewline bottle.",
+          "rank_score": 7.6
+        },
+        "status": "scored",
+        "rank": 1
+      },
+      {
+        "concept_id": "C4",
+        "title": "Guilt-Free Daily Treat",
+        "angle": "Guilt-free daily indulgence for students and professionals",
+        "hook": "Enjoy your daily iced coffee without second-guessing the cost.",
+        "script": [
+          {
+            "t": "0-3s",
+            "visual": "A young professional holding a chilled glass of iced coffee, smiling in a brightly lit apartment.",
+            "voiceover": "Enjoy your daily iced coffee without second-guessing the cost.",
+            "on_screen_text": "Zero coffee guilt"
+          },
+          {
+            "t": "3-10s",
+            "visual": "Pan to the Brewline 1L bottle sitting neatly on the kitchen counter among plants and cream tiles.",
+            "voiceover": "One bottle gives you eight delicious drinks whenever you need a break.",
+            "on_screen_text": "8 drinks per bottle"
+          },
+          {
+            "t": "10-20s",
+            "visual": "Typing on a phone, showing the checkout screen briefly, then taking another sip.",
+            "voiceover": "Grab yours with code FIRSTBREW for twenty percent off.",
+            "on_screen_text": "20% off with FIRSTBREW"
+          }
+        ],
+        "cta": "Claim Your Discount",
+        "midjourney_prompt": "UGC style portrait of a smiling remote worker holding an iced coffee in a cozy kitchen, deep brown and cream interior, natural sunlight, 50mm lens --ar 9:16",
+        "kling_prompt": "Subject smiles at the camera, takes a sip of iced coffee, and laughs softly, natural UGC movement, 6 seconds",
+        "elevenlabs": {
+          "voice_direction": "Male, 28, Indian accent, relaxed, friendly, reassuring tone",
+          "voiceover_text": "Enjoy your daily iced coffee without second-guessing the cost. One bottle gives you eight delicious drinks whenever you need a break. Grab yours with code FIRSTBREW for twenty percent off."
+        },
+        "est_duration_s": 20,
+        "score": {
+          "hook_strength": 5,
+          "brand_fit": 7,
+          "platform_fit": 8,
+          "clarity": 8,
+          "production_feasibility": 8,
+          "weighted_total": 6.9,
+          "compliance_risk": "low",
+          "compliance_reason": "No health, energy, or competitor claims made. Fully adheres to restrictions.",
+          "unsupported_claims": [],
+          "biggest_weakness": "Violates the mandatory instruction to show the bottle in the first 5 seconds (bottle appears at 3-10s).",
+          "one_fix": "Move the Brewline 1L bottle into the opening hook frame (0-3s) so it appears immediately.",
+          "rank_score": 6.9
+        },
+        "status": "scored",
+        "rank": 2
+      },
+      {
+        "concept_id": "C2",
+        "title": "Desk Ritual Routine",
+        "angle": "Quick and easy morning routine for remote work productivity",
+        "hook": "Your desk setup is missing this easy morning coffee ritual.",
+        "script": [
+          {
+            "t": "0-3s",
+            "visual": "Overhead shot of a student opening a laptop on a wooden desk, placing the Brewline bottle down.",
+            "voiceover": "Your desk setup is missing this easy morning coffee ritual.",
+            "on_screen_text": "The ultimate desk setup addition"
+          },
+          {
+            "t": "3-10s",
+            "visual": "Pouring concentrate into a glass of milk and ice while sitting at the desk, warm lighting.",
+            "voiceover": "Just pour, add your favorite milk, and you're ready for your study session.",
+            "on_screen_text": "Ready in seconds"
+          },
+          {
+            "t": "10-20s",
+            "visual": "Smiling at the camera, holding the refreshing iced coffee glass near the laptop.",
+            "voiceover": "Save twenty percent on your first order with code FIRSTBREW.",
+            "on_screen_text": "Use code FIRSTBREW for 20% off"
+          }
+        ],
+        "cta": "Get Your Brewline",
+        "midjourney_prompt": "First person POV of a laptop and a glass of iced coffee on a clean wooden desk, deep brown and cream tones, soft interior lighting, cinematic, 35mm --ar 9:16",
+        "kling_prompt": "Hand enters frame, stirs the iced coffee in the glass gently while the laptop screen glows softly, 6 seconds",
+        "elevenlabs": {
+          "voice_direction": "Male, 24, Indian accent, casual and upbeat energy",
+          "voiceover_text": "Your desk setup is missing this easy morning coffee ritual. Just pour, add your favorite milk, and you're ready for your study session. Save twenty percent on your first order with code FIRSTBREW."
+        },
+        "est_duration_s": 20,
+        "score": {
+          "hook_strength": 5,
+          "brand_fit": 7,
+          "platform_fit": 7,
+          "clarity": 8,
+          "production_feasibility": 8,
+          "weighted_total": 6.7,
+          "compliance_risk": "low",
+          "compliance_reason": "No health or energy claims made, no competitor brands mentioned, and offer/mandatories are correctly included.",
+          "unsupported_claims": [],
+          "biggest_weakness": "The hook focuses on 'desk setup' rather than the core pain point of expensive daily cafe spends and guilt.",
+          "one_fix": "Change the hook to address the heavy spend on daily cafe iced coffee to better trigger the target audience's guilt and financial pain.",
+          "rank_score": 6.7
+        },
+        "status": "scored",
+        "rank": 3
+      },
+      {
+        "concept_id": "C3",
+        "title": "Real Kitchen Cafe Vibe",
+        "angle": "Recreating the cafe iced coffee experience in a real kitchen",
+        "hook": "Bring the cafe iced coffee experience straight into your own kitchen.",
+        "script": [
+          {
+            "t": "0-3s",
+            "visual": "A sleek 1L Brewline bottle centered on a cream marble countertop next to a ceramic mug.",
+            "voiceover": "Bring the cafe iced coffee experience straight into your own kitchen.",
+            "on_screen_text": "Cafe quality at home"
+          },
+          {
+            "t": "3-10s",
+            "visual": "A close-up shot of dark coffee concentrate swirling into cold milk, creating beautiful layers.",
+            "voiceover": "Our cold brew concentrate makes rich, smooth iced coffee every single time.",
+            "on_screen_text": "Smooth and rich"
+          },
+          {
+            "t": "10-20s",
+            "visual": "Taking a sip, looking out the kitchen window with a satisfied smile.",
+            "voiceover": "Try it out and use code FIRSTBREW for twenty percent off your first order.",
+            "on_screen_text": "Code: FIRSTBREW"
+          }
+        ],
+        "cta": "Discover Brewline",
+        "midjourney_prompt": "UGC style vertical shot of milk pouring into cold brew concentrate, cream and deep brown color palette, natural window light, macro lens --ar 9:16",
+        "kling_prompt": "Slow motion shot of milk mixing into dark cold brew concentrate, smooth fluid dynamics, 5 seconds",
+        "elevenlabs": {
+          "voice_direction": "Female, 30, Indian accent, warm, confident, and inviting",
+          "voiceover_text": "Bring the cafe iced coffee experience straight into your own kitchen. Our cold brew concentrate makes rich, smooth iced coffee every single time. Try it out and use code FIRSTBREW for twenty percent off your first order."
+        },
+        "est_duration_s": 20,
+        "score": {
+          "hook_strength": 5,
+          "brand_fit": 7,
+          "platform_fit": 7,
+          "clarity": 8,
+          "production_feasibility": 8,
+          "weighted_total": 6.7,
+          "compliance_risk": "low",
+          "compliance_reason": "No health or energy claims made, and no competitor brands mentioned. Code and offer are compliant.",
+          "unsupported_claims": [],
+          "biggest_weakness": "The hook is generic and descriptive rather than addressing the target audience's specific pain point of feeling guilty about spending money on cafe coffee 3+ times a week.",
+          "one_fix": "Change the hook visual and voiceover to show someone calculating their monthly cafe spend or looking shocked at a pile of cafe receipts before revealing the 1L bottle.",
+          "rank_score": 6.7
+        },
+        "status": "scored",
+        "rank": 4
+      }
+    ],
+    "warnings": [],
+    "report_markdown": "# Creative Pack: Brewline / Brewline Cold Brew Concentrate, 1L bottle (makes 8 drinks)\nRun `run_mw86u7haffi7` · 2026-11-08T18:51:14.159Z · 12.8s · 6 LLM calls · $0.0092\n\n**Core message:** Save money on your daily iced coffee habit without sacrificing cafe quality at home.\n**Audience insight:** Remote workers and students love the ritual and taste of daily cafe iced coffee, but feel guilty about the recurring expense.\n\n| Rank | Concept | Angle | Score | Risk |\n|---|---|---|---|---|\n| 1 | Weekly Spend Reality Check | Calculate the weekly cafe spend vs. concentrate savings | 7.6 | low |\n| 2 | Guilt-Free Daily Treat | Guilt-free daily indulgence for students and professionals | 6.9 | low |\n| 3 | Desk Ritual Routine | Quick and easy morning routine for remote work productivity | 6.7 | low |\n| 4 | Real Kitchen Cafe Vibe | Recreating the cafe iced coffee experience in a real kitchen | 6.7 | low |\n\n## #1 Weekly Spend Reality Check\n**Hook:** Stop and look at how much you're spending on daily iced coffee.\n**Scores:** hook 6 · brand 8 · platform 8 · clarity 9 · feasibility 8\n**Fix before production:** Change the hook to visually or verbally contrast the cost of 3 weekly cafe runs with the price of one Brewline bottle.\n\n| Time | Visual | VO | On screen |\n|---|---|---|---|\n| 0-3s | Close up of the Brewline 1L bottle on a cream kitchen counter next to a glass of ice. | Stop and look at how much you're spending on daily iced coffee. | Daily iced coffee adds up fast |\n| 3-10s | A remote worker at a desk in a warm, cream-toned room pouring dark cold brew concentrate over ice. | One bottle of Brewline concentrate makes eight drinks right at home. | 1 bottle = 8 drinks |\n| 10-20s | Stirring milk into the glass, taking a sip with a relaxed, happy expression. | Use code FIRSTBREW to get twenty percent off your first order today. | Get 20% off with code FIRSTBREW |\n\n**Midjourney (keyframe):**\n```\nUGC style photo of a 1L glass bottle of cold brew on a modern cream kitchen counter, deep brown accents, soft morning light, shot on 35mm lens, photorealistic --ar 9:16\n```\n**Kling (image-to-video):**\n```\nCamera slowly pushes in on the cold brew bottle as a hand drops ice cubes into a glass next to it, natural motion, 7 seconds\n```\n**ElevenLabs VO** (Female, 26, Indian accent, friendly and conversational tone):\n> Stop and look at how much you're spending on daily iced coffee. One bottle of Brewline concentrate makes eight drinks right at home. Use code FIRSTBREW to get twenty percent off your first order today.\n**CTA:** Shop Brewline Now\n\n## #2 Guilt-Free Daily Treat\n**Hook:** Enjoy your daily iced coffee without second-guessing the cost.\n**Scores:** hook 5 · brand 7 · platform 8 · clarity 8 · feasibility 8\n**Fix before production:** Move the Brewline 1L bottle into the opening hook frame (0-3s) so it appears immediately.\n\n| Time | Visual | VO | On screen |\n|---|---|---|---|\n| 0-3s | A young professional holding a chilled glass of iced coffee, smiling in a brightly lit apartment. | Enjoy your daily iced coffee without second-guessing the cost. | Zero coffee guilt |\n| 3-10s | Pan to the Brewline 1L bottle sitting neatly on the kitchen counter among plants and cream tiles. | One bottle gives you eight delicious drinks whenever you need a break. | 8 drinks per bottle |\n| 10-20s | Typing on a phone, showing the checkout screen briefly, then taking another sip. | Grab yours with code FIRSTBREW for twenty percent off. | 20% off with FIRSTBREW |\n\n**Midjourney (keyframe):**\n```\nUGC style portrait of a smiling remote worker holding an iced coffee in a cozy kitchen, deep brown and cream interior, natural sunlight, 50mm lens --ar 9:16\n```\n**Kling (image-to-video):**\n```\nSubject smiles at the camera, takes a sip of iced coffee, and laughs softly, natural UGC movement, 6 seconds\n```\n**ElevenLabs VO** (Male, 28, Indian accent, relaxed, friendly, reassuring tone):\n> Enjoy your daily iced coffee without second-guessing the cost. One bottle gives you eight delicious drinks whenever you need a break. Grab yours with code FIRSTBREW for twenty percent off.\n**CTA:** Claim Your Discount\n\n## #3 Desk Ritual Routine\n**Hook:** Your desk setup is missing this easy morning coffee ritual.\n**Scores:** hook 5 · brand 7 · platform 7 · clarity 8 · feasibility 8\n**Fix before production:** Change the hook to address the heavy spend on daily cafe iced coffee to better trigger the target audience's guilt and financial pain.\n\n| Time | Visual | VO | On screen |\n|---|---|---|---|\n| 0-3s | Overhead shot of a student opening a laptop on a wooden desk, placing the Brewline bottle down. | Your desk setup is missing this easy morning coffee ritual. | The ultimate desk setup addition |\n| 3-10s | Pouring concentrate into a glass of milk and ice while sitting at the desk, warm lighting. | Just pour, add your favorite milk, and you're ready for your study session. | Ready in seconds |\n| 10-20s | Smiling at the camera, holding the refreshing iced coffee glass near the laptop. | Save twenty percent on your first order with code FIRSTBREW. | Use code FIRSTBREW for 20% off |\n\n**Midjourney (keyframe):**\n```\nFirst person POV of a laptop and a glass of iced coffee on a clean wooden desk, deep brown and cream tones, soft interior lighting, cinematic, 35mm --ar 9:16\n```\n**Kling (image-to-video):**\n```\nHand enters frame, stirs the iced coffee in the glass gently while the laptop screen glows softly, 6 seconds\n```\n**ElevenLabs VO** (Male, 24, Indian accent, casual and upbeat energy):\n> Your desk setup is missing this easy morning coffee ritual. Just pour, add your favorite milk, and you're ready for your study session. Save twenty percent on your first order with code FIRSTBREW.\n**CTA:** Get Your Brewline\n\n## #4 Real Kitchen Cafe Vibe\n**Hook:** Bring the cafe iced coffee experience straight into your own kitchen.\n**Scores:** hook 5 · brand 7 · platform 7 · clarity 8 · feasibility 8\n**Fix before production:** Change the hook visual and voiceover to show someone calculating their monthly cafe spend or looking shocked at a pile of cafe receipts before revealing the 1L bottle.\n\n| Time | Visual | VO | On screen |\n|---|---|---|---|\n| 0-3s | A sleek 1L Brewline bottle centered on a cream marble countertop next to a ceramic mug. | Bring the cafe iced coffee experience straight into your own kitchen. | Cafe quality at home |\n| 3-10s | A close-up shot of dark coffee concentrate swirling into cold milk, creating beautiful layers. | Our cold brew concentrate makes rich, smooth iced coffee every single time. | Smooth and rich |\n| 10-20s | Taking a sip, looking out the kitchen window with a satisfied smile. | Try it out and use code FIRSTBREW for twenty percent off your first order. | Code: FIRSTBREW |\n\n**Midjourney (keyframe):**\n```\nUGC style vertical shot of milk pouring into cold brew concentrate, cream and deep brown color palette, natural window light, macro lens --ar 9:16\n```\n**Kling (image-to-video):**\n```\nSlow motion shot of milk mixing into dark cold brew concentrate, smooth fluid dynamics, 5 seconds\n```\n**ElevenLabs VO** (Female, 30, Indian accent, warm, confident, and inviting):\n> Bring the cafe iced coffee experience straight into your own kitchen. Our cold brew concentrate makes rich, smooth iced coffee every single time. Try it out and use code FIRSTBREW for twenty percent off your first order.\n**CTA:** Discover Brewline\n\n## Questions for the client\n- What is the exact price per bottle before the 20% discount?\n- What are the specific steps to mix the concentrate for the best user experience in the video?"
+  }
+]

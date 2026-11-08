@@ -1,0 +1,14 @@
+{
+  "brand": "Brewline",
+  "product": "Brewline Cold Brew Concentrate, 1L bottle (makes 8 drinks)",
+  "audience": "Remote workers and students 22-35 in India who buy cafe iced coffee 3+ times a week and feel guilty about the spend",
+  "objective": "Drive first purchases on the D2C website",
+  "offer": "20% off the first order with code FIRSTBREW",
+  "tone": "Playful, confident, no hard sell",
+  "platforms": ["Meta Reels", "Instagram Stories"],
+  "formats": ["9:16 video"],
+  "mandatories": ["Show the bottle in the first 5 seconds", "Mention code FIRSTBREW"],
+  "restrictions": ["No health or energy claims", "Do not mention competitor cafe brands"],
+  "notes": "Brand colors are deep brown and cream. Client likes UGC-style, real-kitchen settings.",
+  "num_concepts": 4
+}
