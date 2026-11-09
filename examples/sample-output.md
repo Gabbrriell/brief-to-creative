@@ -21,7 +21,7 @@ Run `run_mw94ozga55ea` · 2026-11-09T10:50:17.810Z · 693.2s · 4 LLM calls · $
 | 0-3s | Top-down view of a cozy Indian apartment kitchen counter. A hand places the 1L Brewline bottle down alongside a tall glass of ice. | Your entire work-from-home iced coffee lineup, sorted in one bottle. | 1 Bottle = 8 Drinks |
 | 3-8s | Quick jump cuts showing dark cold brew pouring smoothly over ice, then milk blending into creamy brown ribbons. | Brewline Cold Brew Concentrate makes eight iced coffees, ready whenever your break begins. | 8 Drinks For Your Desk |
 | 8-13s | The creator slides the cold glass across to their workstation next to a planner and laptop. | No delivery waiting, no cafe bill stacking up every single week. | No cafe deliveries needed |
-| 13-17s | Product bottle displayed beside a full glass on a cream coaster. End card with promo code. | Stock your fridge with twenty percent off using code FIRSTBREW. | 20% Off | Code: FIRSTBREW |
+| 13-17s | Product bottle displayed beside a full glass on a cream coaster. End card with promo code. | Stock your fridge with twenty percent off using code FIRSTBREW. | 20% Off \| Code: FIRSTBREW |
 
 **Midjourney (keyframe):**
 ```
@@ -92,7 +92,7 @@ Camera pans slowly from a handheld angle focusing on the woman tilting the amber
 | 0-3s | A young guy in comfortable home clothes opens his fridge door and grabs the 1L Brewline bottle. | Who says great iced coffee has to mean another cafe bill? | Your kitchen, your cafe |
 | 3-7s | He places the bottle next to a glass filled with ice and pours dark concentrate smoothly. | Brewline Cold Brew Concentrate turns your kitchen into your personal iced coffee bar. | Brewline Cold Brew Concentrate |
 | 7-11s | Adding cold milk creates marble patterns. He stirs it with a glass straw. | Each one-liter bottle makes eight full drinks, whenever you want one. | Makes 8 full drinks |
-| 11-16s | He takes a sip while leaning against the counter. Sleek graphic shows 20% off code. | Start pouring at home. Use code FIRSTBREW for twenty percent off your first bottle. | Code: FIRSTBREW | 20% Off |
+| 11-16s | He takes a sip while leaning against the counter. Sleek graphic shows 20% off code. | Start pouring at home. Use code FIRSTBREW for twenty percent off your first bottle. | Code: FIRSTBREW \| 20% Off |
 
 **Midjourney (keyframe):**
 ```
@@ -113,5 +113,5 @@ Steady medium close-up shot as the rich coffee pours in a steady stream into the
 - Are there shipping fees, or is shipping free with the FIRSTBREW code?
 
 ## Run warnings
-- C1 not scored: Gemini request failed: The connection was aborted, perhaps the server is offline
-- C4 not scored: Gemini request failed: The connection was aborted, perhaps the server is offline
+- C1 "The Daily Expense Confession" not scored: Gemini request failed: The connection was aborted, perhaps the server is offline
+- C4 "Kitchen Cafe Setup" not scored: Gemini request failed: The connection was aborted, perhaps the server is offline

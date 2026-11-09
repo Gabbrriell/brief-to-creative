@@ -47,7 +47,7 @@ const results = concepts.map(c => {
     };
   } catch (e) {
     // One failed scoring call shouldn't sink the whole run. Keep the concept, flag it for a human.
-    warnings.push(`${c.concept_id} not scored: ${e.message}`);
+    warnings.push(`${c.concept_id} "${c.concept.title || 'untitled'}" not scored: ${e.message}`);
   }
   return { concept_id: c.concept_id, ...c.concept, score, status: score ? 'scored' : 'needs_manual_review' };
 });
@@ -73,6 +73,8 @@ const finished = new Date();
 const durationMs = finished - new Date(ctx.started_at);
 
 // ---- Markdown creative pack (paste into Notion/Slack/Docs) ----
+// Model text can contain | or line breaks, which would break markdown table rows
+const cell = v => String(v == null ? '' : v).replace(/\|/g, '\\|').replace(/\s*\n\s*/g, ' ');
 const md = [];
 md.push(`# Creative Pack: ${brief.brand} / ${brief.product}`);
 md.push(`Run \`${ctx.run_id}\` · ${finished.toISOString()} · ${(durationMs / 1000).toFixed(1)}s · ${cost.llm_calls} LLM calls · $${cost.usd.toFixed(4)}`);
@@ -83,7 +85,7 @@ md.push('');
 md.push('| Rank | Concept | Angle | Score | Risk |');
 md.push('|---|---|---|---|---|');
 results.forEach(r => {
-  md.push(`| ${r.rank} | ${r.title || r.concept_id} | ${r.angle || ''} | ${r.score ? r.score.weighted_total : 'n/a'} | ${r.score ? r.score.compliance_risk : 'review'} |`);
+  md.push(`| ${r.rank} | ${cell(r.title || r.concept_id)} | ${cell(r.angle)} | ${r.score ? r.score.weighted_total : 'n/a'} | ${r.score ? r.score.compliance_risk : 'review'} |`);
 });
 results.forEach(r => {
   md.push('');
@@ -100,7 +102,7 @@ results.forEach(r => {
   md.push('');
   md.push('| Time | Visual | VO | On screen |');
   md.push('|---|---|---|---|');
-  (r.script || []).forEach(b => md.push(`| ${b.t || ''} | ${b.visual || ''} | ${b.voiceover || ''} | ${b.on_screen_text || ''} |`));
+  (r.script || []).forEach(b => md.push(`| ${cell(b.t)} | ${cell(b.visual)} | ${cell(b.voiceover)} | ${cell(b.on_screen_text)} |`));
   md.push('');
   md.push('**Midjourney (keyframe):**');
   md.push('```');
